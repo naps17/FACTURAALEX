@@ -1,0 +1,378 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Validador de Cuentas de Cobro - Versión Final</title>
+    <link href="https://fonts.googleapis.com/css2?family=Roboto:wght@300;400;500;700&display=swap" rel="stylesheet">
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+
+    <style>
+        /* --- 1. RESET Y VARIABLES --- */
+        :root {
+            --primary: #2c3e50;      /* Azul Oscuro (Sidebar) */
+            --accent: #3498db;       /* Azul Claro (Botones/Links) */
+            --bg: #f4f6f9;           /* Fondo General */
+            --white: #ffffff;
+            --success: #27ae60;
+            --danger: #e74c3c;
+            --text: #333333;
+            --sidebar-width: 260px;
+        }
+
+        * { margin: 0; padding: 0; box-sizing: border-box; font-family: 'Roboto', sans-serif; }
+        body { display: flex; background-color: var(--bg); height: 100vh; overflow: hidden; }
+
+        /* --- 2. SIDEBAR (BARRA LATERAL) --- */
+        .sidebar {
+            width: var(--sidebar-width);
+            background-color: var(--primary);
+            color: var(--white);
+            display: flex;
+            flex-direction: column;
+            padding: 20px;
+            flex-shrink: 0;
+        }
+
+        .brand {
+            font-size: 1.4rem; font-weight: bold; text-align: center;
+            padding-bottom: 30px; border-bottom: 1px solid rgba(255,255,255,0.1); margin-bottom: 20px;
+        }
+
+        .menu button {
+            background: none; border: none; width: 100%; color: #bdc3c7;
+            padding: 15px; text-align: left; cursor: pointer; font-size: 1rem;
+            display: flex; align-items: center; transition: 0.3s; border-radius: 8px; margin-bottom: 5px;
+        }
+
+        .menu button i { margin-right: 15px; width: 25px; text-align: center; }
+        .menu button:hover, .menu button.active { background-color: rgba(255,255,255,0.1); color: var(--white); border-left: 4px solid var(--accent); }
+
+        /* --- 3. CONTENIDO PRINCIPAL --- */
+        .main-content {
+            flex-grow: 1; padding: 40px; overflow-y: auto;
+        }
+
+        .module { display: none; animation: fadeEffect 0.4s; }
+        .module.active { display: block; }
+        @keyframes fadeEffect { from {opacity: 0;} to {opacity: 1;} }
+
+        h2 { color: var(--primary); margin-bottom: 25px; border-bottom: 2px solid var(--accent); display: inline-block; padding-bottom: 5px; }
+
+        /* --- 4. MODULO: VALIDAR (ZONA DE CARGA) --- */
+        .upload-container {
+            background: var(--white); border-radius: 12px; padding: 40px;
+            box-shadow: 0 4px 15px rgba(0,0,0,0.05); text-align: center;
+        }
+
+        /* Esta es la zona crítica para el Drag & Drop */
+        .drop-area {
+            border: 3px dashed #cbd5e0; border-radius: 10px; padding: 60px 20px;
+            cursor: pointer; transition: all 0.3s ease; background-color: #fafafa;
+            position: relative;
+        }
+
+        .drop-area:hover { background-color: #f0f4f8; border-color: var(--accent); }
+        .drop-area.highlight { border-color: var(--success); background-color: #e8f8f5; transform: scale(1.01); }
+
+        .drop-area i { font-size: 4rem; color: #bdc3c7; margin-bottom: 15px; display: block; }
+        .drop-area p { font-size: 1.1rem; color: #666; }
+        .drop-area .file-info { display: none; margin-top: 20px; font-weight: bold; color: var(--success); font-size: 1.2rem; }
+
+        .action-buttons { margin-top: 30px; display: flex; gap: 15px; justify-content: center; }
+        .btn { padding: 12px 30px; border: none; border-radius: 6px; font-weight: bold; cursor: pointer; transition: 0.3s; font-size: 1rem; }
+        .btn-primary { background-color: var(--accent); color: white; }
+        .btn-primary:hover { background-color: #2980b9; }
+        .btn-secondary { background-color: #95a5a6; color: white; }
+        .btn-secondary:hover { background-color: #7f8c8d; }
+        .btn:disabled { background-color: #ccc; cursor: not-allowed; }
+
+        /* --- 5. MODULO: DASHBOARD --- */
+        .kpi-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(250px, 1fr)); gap: 20px; }
+        .kpi-card { background: var(--white); padding: 25px; border-radius: 10px; box-shadow: 0 2px 10px rgba(0,0,0,0.05); text-align: center; }
+        .kpi-value { font-size: 2.5rem; font-weight: 700; margin: 10px 0; color: var(--primary); }
+
+        /* --- 6. MODULO: HISTORIAL --- */
+        table { width: 100%; border-collapse: collapse; background: var(--white); border-radius: 8px; overflow: hidden; box-shadow: 0 2px 10px rgba(0,0,0,0.05); }
+        th, td { padding: 15px; text-align: left; border-bottom: 1px solid #eee; }
+        th { background-color: var(--primary); color: white; }
+        .tag { padding: 5px 10px; border-radius: 15px; font-size: 0.85rem; font-weight: bold; }
+        .tag-success { background-color: #d4edda; color: #155724; }
+        .tag-error { background-color: #f8d7da; color: #721c24; }
+
+        /* --- 7. MODULO: AYUDA --- */
+        .help-content { background: var(--white); padding: 30px; border-radius: 10px; line-height: 1.8; }
+        .note { background: #fff3cd; border-left: 5px solid #ffc107; padding: 15px; margin-top: 20px; color: #856404; }
+
+        /* --- 8. CONTACTO --- */
+        .contact-form { margin-top: 30px; background: var(--white); padding: 20px; border-radius: 10px; }
+        .input-row { display: flex; gap: 10px; margin-top: 10px; }
+        input[type="text"] { flex: 1; padding: 10px; border: 1px solid #ddd; border-radius: 5px; }
+
+        /* RESPONSIVE */
+        @media (max-width: 768px) {
+            body { flex-direction: column; overflow: auto; }
+            .sidebar { width: 100%; height: auto; position: relative; padding: 10px; }
+            .main-content { padding: 20px; }
+            .menu button { padding: 10px; font-size: 0.9rem; }
+        }
+    </style>
+</head>
+<body>
+
+    <aside class="sidebar">
+        <div class="brand"><i class="fas fa-check-double"></i> Validador CC</div>
+        <nav class="menu">
+            <button class="active" onclick="switchTab('home', this)"><i class="fas fa-home"></i> Inicio</button>
+            <button onclick="switchTab('validate', this)"><i class="fas fa-file-upload"></i> Validar Factura</button>
+            <button onclick="switchTab('history', this)"><i class="fas fa-history"></i> Historial</button>
+            <button onclick="switchTab('help', this)"><i class="fas fa-book"></i> Ayuda y Requisitos</button>
+        </nav>
+    </aside>
+
+    <main class="main-content">
+
+        <div id="home" class="module active">
+            <h2>Resumen de Actividad</h2>
+            <div class="kpi-grid">
+                <div class="kpi-card">
+                    <i class="fas fa-file-invoice fa-2x" style="color: var(--accent);"></i>
+                    <div class="kpi-value" id="kpi-total">0</div>
+                    <div>Facturas Procesadas</div>
+                </div>
+                <div class="kpi-card">
+                    <i class="fas fa-check-circle fa-2x" style="color: var(--success);"></i>
+                    <div class="kpi-value" id="kpi-ok">0</div>
+                    <div>Aprobadas</div>
+                </div>
+                <div class="kpi-card">
+                    <i class="fas fa-times-circle fa-2x" style="color: var(--danger);"></i>
+                    <div class="kpi-value" id="kpi-fail">0</div>
+                    <div>Rechazadas</div>
+                </div>
+            </div>
+
+            <div class="contact-form">
+                <h3><i class="fab fa-whatsapp"></i> Soporte Técnico</h3>
+                <p>Horario: Lunes a Viernes, 8:00 A.M. a 5:00 P.M.</p>
+                <a href="https://wa.me/" target="_blank" class="btn btn-success" style="background:#25D366; color:white; text-decoration:none; display:inline-block; margin-top:10px; padding:10px 20px; border-radius:5px;">
+                    <i class="fab fa-whatsapp"></i> Abrir Chat de Soporte
+                </a>
+            </div>
+        </div>
+
+        <div id="validate" class="module">
+            <h2>Validar Factura</h2>
+            <div class="upload-container">
+                <div id="drop-area" class="drop-area">
+                    <i id="upload-icon" class="fas fa-cloud-upload-alt"></i>
+                    <p id="upload-text">Haz clic aquí o arrastra tu archivo (PDF, JPG, PNG)</p>
+                    
+                    <input type="file" id="file-input" accept=".pdf, .png, .jpg, .jpeg" style="display: none;">
+                    
+                    <div id="file-info" class="file-info">
+                        <i class="fas fa-check"></i> <span id="filename-display"></span>
+                    </div>
+                </div>
+
+                <div class="action-buttons">
+                    <button class="btn btn-secondary" onclick="resetUpload()">Limpiar</button>
+                    <button class="btn btn-primary" id="btn-validate" onclick="processValidation()">Validar Ahora</button>
+                </div>
+
+                <div class="contact-form" style="text-align: left; margin-top: 40px;">
+                    <h4><i class="fas fa-bell"></i> Notificarme resultado</h4>
+                    <div class="input-row">
+                        <input type="text" placeholder="Tu WhatsApp o Email...">
+                        <button class="btn btn-primary" style="padding: 10px;">Guardar</button>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <div id="history" class="module">
+            <h2>Historial de Validaciones</h2>
+            <table>
+                <thead>
+                    <tr>
+                        <th>Fecha</th>
+                        <th>Archivo</th>
+                        <th>Estado</th>
+                    </tr>
+                </thead>
+                <tbody id="history-table">
+                    </tbody>
+            </table>
+        </div>
+
+        <div id="help" class="module">
+            <h2>Ayuda y Requisitos</h2>
+            <div class="help-content">
+                <p>Para radicar la cuenta de cobro, debe usar la factura original emitida por el Jefe Inmediato cumpliendo con:</p>
+                <ul style="margin-left: 20px; margin-top: 10px;">
+                    <li><strong>Fecha:</strong> Día/Mes/Año (Ej: 17/05/2025).</li>
+                    <li><strong>Pagado a:</strong> Nombre y Apellidos completos.</li>
+                    <li><strong>Por concepto de:</strong> (Uno de los 3 tipos):
+                        <ol>
+                            <li>Días Menos de Una Semana.</li>
+                            <li>Semana Completa.</li>
+                            <li>Mes Completo.</li>
+                        </ol>
+                    </li>
+                    <li><strong>Valor:</strong> En letras.</li>
+                    <li><strong>Aprobado:</strong> Sí o No.</li>
+                    <li><strong>Firmado:</strong> Obligatorio.</li>
+                </ul>
+                <div class="note">
+                    <strong>Nota:</strong> Para realizar la cuenta de cobro usted debe cumplir con las indicaciones establecidas.
+                </div>
+            </div>
+        </div>
+
+    </main>
+
+    <script>
+        // --- VARIABLES GLOBALES ---
+        const dropArea = document.getElementById('drop-area');
+        const fileInput = document.getElementById('file-input');
+        const fileInfo = document.getElementById('file-info');
+        const fileNameDisplay = document.getElementById('filename-display');
+        const uploadText = document.getElementById('upload-text');
+        const uploadIcon = document.getElementById('upload-icon');
+        let currentFile = null;
+
+        // --- 1. SISTEMA DE PESTAÑAS ---
+        function switchTab(tabId, btnElement) {
+            // Ocultar todos los modulos
+            document.querySelectorAll('.module').forEach(el => el.classList.remove('active'));
+            // Mostrar el deseado
+            document.getElementById(tabId).classList.add('active');
+            // Actualizar menu
+            document.querySelectorAll('.menu button').forEach(el => el.classList.remove('active'));
+            btnElement.classList.add('active');
+        }
+
+        // --- 2. LOGICA DE CARGA (DRAG & DROP + CLICK) ---
+        
+        // A. Click en el recuadro -> Click en el input invisible
+        dropArea.addEventListener('click', () => {
+            fileInput.click();
+        });
+
+        // B. Detectar cambio en el input (cuando seleccionan archivo)
+        fileInput.addEventListener('change', function() {
+            if (this.files && this.files[0]) {
+                handleFile(this.files[0]);
+            }
+        });
+
+        // C. Eventos Drag & Drop (Prevenir comportamiento por defecto)
+        ;['dragenter', 'dragover', 'dragleave', 'drop'].forEach(eventName => {
+            dropArea.addEventListener(eventName, preventDefaults, false);
+        });
+
+        function preventDefaults(e) {
+            e.preventDefault();
+            e.stopPropagation();
+        }
+
+        // D. Efectos visuales al arrastrar
+        dropArea.addEventListener('dragenter', () => dropArea.classList.add('highlight'));
+        dropArea.addEventListener('dragover', () => dropArea.classList.add('highlight'));
+        dropArea.addEventListener('dragleave', () => dropArea.classList.remove('highlight'));
+        
+        // E. Soltar el archivo (Drop)
+        dropArea.addEventListener('drop', (e) => {
+            dropArea.classList.remove('highlight');
+            const dt = e.dataTransfer;
+            const files = dt.files;
+            if (files && files.length > 0) {
+                handleFile(files[0]);
+            }
+        });
+
+        // --- 3. MANEJO DEL ARCHIVO ---
+        function handleFile(file) {
+            // Validar tipo
+            const validTypes = ['application/pdf', 'image/jpeg', 'image/png', 'image/jpg'];
+            if (!validTypes.includes(file.type)) {
+                alert('❌ Formato no válido. Solo PDF, JPG o PNG.');
+                return;
+            }
+
+            currentFile = file;
+            
+            // Actualizar interfaz
+            uploadText.style.display = 'none';
+            uploadIcon.style.display = 'none';
+            fileInfo.style.display = 'block';
+            fileNameDisplay.innerText = file.name;
+        }
+
+        function resetUpload() {
+            currentFile = null;
+            fileInput.value = ''; // Reset input
+            uploadText.style.display = 'block';
+            uploadIcon.style.display = 'block';
+            fileInfo.style.display = 'none';
+            document.getElementById('btn-validate').innerText = "Validar Ahora";
+            document.getElementById('btn-validate').disabled = false;
+        }
+
+        // --- 4. PROCESO DE VALIDACIÓN (SIMULACIÓN) ---
+        function processValidation() {
+            if (!currentFile) {
+                alert("⚠️ Por favor carga un archivo primero.");
+                return;
+            }
+
+            const btn = document.getElementById('btn-validate');
+            btn.disabled = true;
+            btn.innerHTML = '<i class="fas fa-spinner fa-spin"></i> Analizando...';
+
+            // Simular espera de 2 segundos (IA)
+            setTimeout(() => {
+                // Generar resultado aleatorio (80% éxito)
+                const isSuccess = Math.random() > 0.2;
+                const status = isSuccess ? "Aprobado" : "Rechazado (Datos faltantes)";
+                const cssClass = isSuccess ? "tag-success" : "tag-error";
+
+                // Agregar al Historial
+                const tbody = document.getElementById('history-table');
+                const date = new Date().toLocaleString();
+                const row = `
+                    <tr>
+                        <td>${date}</td>
+                        <td>${currentFile.name}</td>
+                        <td><span class="tag ${cssClass}">${status}</span></td>
+                    </tr>
+                `;
+                tbody.innerHTML = row + tbody.innerHTML; // Insertar al principio
+
+                // Actualizar Dashboard
+                updateStats(isSuccess);
+
+                // Notificar usuario
+                alert(isSuccess ? "✅ Documento validado correctamente." : "❌ El documento presenta errores.");
+                
+                // Resetear formulario
+                resetUpload();
+
+            }, 2000);
+        }
+
+        function updateStats(success) {
+            const totalEl = document.getElementById('kpi-total');
+            const okEl = document.getElementById('kpi-ok');
+            const failEl = document.getElementById('kpi-fail');
+
+            totalEl.innerText = parseInt(totalEl.innerText) + 1;
+            if (success) {
+                okEl.innerText = parseInt(okEl.innerText) + 1;
+            } else {
+                failEl.innerText = parseInt(failEl.innerText) + 1;
+            }
+        }
+    </script>
+</body>
+</html>
